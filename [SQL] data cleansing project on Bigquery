@@ -1,0 +1,138 @@
+
+-- Create new Date column for easily manage
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN Date DATE;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET Date = Cast(Saledate AS Date)
+WHERE SaleDate is not null;
+
+-- Populate Property Address Data
+
+WITH
+test AS
+  (SELECT A.LandUse,A.UniqueID,B.UniqueID, A.ParcelID, A.PropertyAddress ,B.ParcelID, B.PropertyAddress, IFNULL(A.PropertyAddress,B.PropertyAddress) AS new_address
+  FROM `root-bricolage-402804.101.Data Test` AS A
+  LEFT JOIN 
+   ( SELECT DISTINCT(ParcelID) AS ParcelID, UniqueID,PropertyAddress
+   FROM `root-bricolage-402804.101.Data Test`)
+   AS B
+  ON A.ParcelID = B.ParcelID
+  WHERE A.PropertyAddress IS NULL
+  AND B.PropertyAddress IS NOT NULL
+  )
+SELECT * FROM TEST
+
+-- Now we jnow that some null Address is the same ParcelID of existing Address, So we can replace the Null with the existing Address using the same ParcelID
+-- Replace Null with the existing value
+
+UPDATE `root-bricolage-402804.101.Data Test` AS E
+SET E.PropertyAddress = IFNULL(E.PropertyAddress,B.PropertyAddress)
+  FROM `root-bricolage-402804.101.Data Test` AS A
+  LEFT JOIN 
+   ( SELECT DISTINCT(ParcelID) AS ParcelID,PropertyAddress
+   FROM `root-bricolage-402804.101.Data Test`)
+   AS B
+  ON A.ParcelID = B.ParcelID
+  WHERE A.PropertyAddress IS NULL
+  AND B.PropertyAddress IS NOT NULL
+AND E.UniqueID = A.UniqueID
+AND E.ParcelID = B.ParcelID
+
+-- Break out Address into Individual Columns (Address, City)
+
+SELECT PropertyAddress,REGEXP_EXTRACT(PropertyAddress,'(.*),'), REGEXP_EXTRACT(PropertyAddress,',(.*)')
+FROM `root-bricolage-402804.101.Data Test`
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN Address STRING;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET Address = REGEXP_EXTRACT(PropertyAddress,'(.*),')
+WHERE Address is NULL
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN City STRING;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET City = REGEXP_EXTRACT(PropertyAddress,',(.*)')
+WHERE City is NULL
+
+-- Break out OwnerAddress into Individual Columns (Address, City, State)
+
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+RENAME COLUMN Address to SplitPropertyAddress
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+RENAME COLUMN City to SplitPropertyCity
+
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN SplitOwnerAddress STRING;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET SplitOwnerAddress = REGEXP_EXTRACT(OwnerAddress,'(.+),.+,')
+WHERE SplitOwnerAddress is NULL
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN SplitOwnerCity STRING;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET SplitOwnerCity = REGEXP_EXTRACT(OwnerAddress,'.+,(.+),.+')
+WHERE SplitOwnerCity is NULL
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN SplitOwnerState STRING;
+
+UPDATE `root-bricolage-402804.101.Data Test`
+SET SplitOwnerState = REGEXP_EXTRACT(OwnerAddress,'.+,.+,(.+)')
+WHERE SplitOwnerState is NULL
+
+
+--- Remove Duplicate
+
+-- check whether data is duplicate assumming this list has to difference
+-- Assume we create this as a view
+
+DELETE FROM ROW_DUP_DATA
+WHERE ROW_NUM > 1
+
+WITH ROW_DUP_DATA AS
+(SELECT ROW_NUMBER() OVER(
+  PARTITION BY ParcelID,
+                PropertyAddress,
+                SalePrice,
+                SaleDate,
+                LegalReference
+                ORDER BY
+                ParcelID
+                ) AS ROW_NUM,
+*
+FROM `root-bricolage-402804.101.Data Test`);
+
+
+ALTER TABLE `root-bricolage-402804.101.Data Test`
+ADD COLUMN Row_num INT64;
+
+UPDATE `root-bricolage-402804.101.Data Test` AS B
+SET Row_num =  Row_number1
+FROM (SELECT UniqueID, ROW_NUMBER() OVER(
+  PARTITION BY ParcelID,
+                PropertyAddress,
+                SalePrice,
+                SaleDate,
+                LegalReference
+                ORDER BY
+                ParcelID
+                ) AS Row_number1
+                FROM `root-bricolage-402804.101.Data Test`) AS A
+WHERE B.UniqueID = A.UniqueID
+
+DELETE FROM `root-bricolage-402804.101.Data Test`
+WHERE ROW_NUM > 1
+
+
+
+
