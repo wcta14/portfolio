@@ -1,0 +1,204 @@
+CREATE TABLE `101.naics_sector_code_description` (
+  `NAICS_Industry_Description` STRING,
+  `Lookup_code` STRING,
+  `Sector` STRING
+) AS
+SELECT NAICS_Industry_Description,
+       REGEXP_EXTRACT(NAICS_Industry_Description,'Sector ([0-9]+).*') AS Lookup_code,
+       REGEXP_EXTRACT(NAICS_Industry_Description,'Sector.+- (.*)') AS Sector,
+FROM `root-bricolage-402804.101.Industry_standards` 
+WHERE NAICS_Codes is null
+AND REGEXP_EXTRACT(NAICS_Industry_Description,'Sector ([0-9]+).*') is not null;
+
+
+SELECT *
+FROM `101.naics_sector_code_description`
+
+INSERT INTO `101.naics_sector_code_description`
+VALUES
+('Sector 31 - 33 - Manufacturing','32','Manufacturing'),
+('Sector 31 - 33 - Manufacturing','33','Manufacturing'),
+('Sector 44 - 45 - Retail Trade','45','Retail Trade'),
+('Sector 48 - 49 - Transportation and Warehousing','49','Transportation and Warehousing');
+
+
+
+--- Date Column
+
+ALTER TABLE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+ADD COLUMN DateApproved2 DATE
+
+UPDATE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+SET DateApproved2 = PARSE_DATE('%m/%d/%Y',DateApproved)
+WHERE DateApproved2 is NULL
+
+
+ALTER TABLE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+ADD COLUMN LoanStatusDate2 DATE
+
+UPDATE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+SET LoanStatusDate2 = PARSE_DATE('%m/%d/%Y',LoanStatusDate)
+WHERE LoanStatusDate2 is NULL
+
+
+ALTER TABLE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+ADD COLUMN ForgivenessDate2 DATE
+
+UPDATE `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+SET ForgivenessDate2 = PARSE_DATE('%m/%d/%Y',ForgivenessDate)
+WHERE ForgivenessDate2 is NULL
+
+
+--1---
+---Summary of All PPP Approved Lending
+--Note, there is also servicing Lender
+
+Select 
+COUNT(LoanNumber) as Loans_Approved, 
+sum(InitialApprovalAmount) as Total_Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size, 
+count(distinct (OriginatingLender)) Total_Originating_Lender_Count
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+
+
+---Summary of 2021 PPP Approved Lending
+
+Select 
+COUNT(LoanNumber) as Loans_Approved, 
+sum(InitialApprovalAmount) as Total_Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size, 
+count(distinct (OriginatingLender)) Total_Originating_Lender_Count
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+WHERE EXTRACT(YEAR From DateApproved2) = 2021
+
+---Summary of 2020 PPP Approved Lending
+
+Select 
+COUNT(LoanNumber) as Loans_Approved, 
+sum(InitialApprovalAmount) as Total_Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size, 
+count(distinct (OriginatingLender)) Total_Originating_Lender_Count
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+WHERE EXTRACT(YEAR From DateApproved2) = 2020
+
+---2---
+---Summary of 2021 PPP Approved Loans per Originating Lender, loan count, total amount and average
+--Top 15 Originating Lenders for 2021 PPP Loans
+--Data is ordered by Net_Dollars
+
+Select 
+OriginatingLender,
+COUNT(LoanNumber) as Loans_Approved, 
+sum(InitialApprovalAmount) as Total_Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+WHERE EXTRACT(YEAR From DateApproved2) = 2021
+GROUP BY OriginatingLender
+ORDER BY Total_Net_Dollars DESC
+LIMIT 15
+
+---3----
+---Top 20 Industries that received the PPP Loans in 2021
+
+WITH Sector_summary AS
+(Select Sector,
+COUNT(LoanNumber) as Loans_Approved, 
+SUM(InitialApprovalAmount) as Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930` AS A
+JOIN `101.naics_sector_code_description` AS B
+ON LEFT(A.NAICSCode,2) = B.Lookup_code
+GROUP BY Sector
+ORDER BY Net_Dollars DESC)
+SELECT
+  Sector,
+  Loans_Approved,
+  Net_Dollars,
+  Net_Dollars/SUM(Net_Dollars) OVER()*100 AS Percent_by_Amount
+FROM Sector_summary
+ORDER BY Percent_by_Amount DESC
+
+---4---
+--States and Territories
+
+Select BorrowerState AS State,
+COUNT(LoanNumber) as Loans_Approved, 
+SUM(InitialApprovalAmount) as Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+GROUP BY State
+ORDER BY Loans_Approved DESC
+LIMIT 1 
+
+
+
+---5----
+---Demographics for PPP
+
+Select race,
+COUNT(LoanNumber) as Loans_Approved, 
+SUM(InitialApprovalAmount) as Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+GROUP BY race
+ORDER BY Loans_Approved DESC
+LIMIT 10
+
+Select Ethnicity,
+COUNT(LoanNumber) as Loans_Approved, 
+SUM(InitialApprovalAmount) as Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+GROUP BY Ethnicity
+ORDER BY Loans_Approved DESC
+LIMIT 10
+
+Select Veteran,
+COUNT(LoanNumber) as Loans_Approved, 
+SUM(InitialApprovalAmount) as Net_Dollars, 
+AVG(InitialApprovalAmount) as Average_Loan_Size
+FROM `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+GROUP BY Veteran
+ORDER BY Loans_Approved DESC
+LIMIT 10
+
+
+
+---6---
+---How much of the PPP Loans of 2021 have been fully forgiven
+
+select count(LoanNumber) as Count_of_Payments,  sum(ForgivenessAmount) as Forgiveness_amount_paid
+from `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+Where EXTRACT(YEAR From DateApproved2) = 2020 
+and ForgivenessAmount <> 0
+
+
+---Summary of 2021 PPP Approved Lending
+
+Select count(LoanNumber) as Loans_Approved, 
+sum(InitialApprovalAmount) as Total_Net_Dollars, 
+sum(ForgivenessAmount) as Forgiveness_amount_paid,
+(select 
+count(distinct (OriginatingLender))
+from `root-bricolage-402804.101.public_up_to_150k_1-12_230930` 
+WHERE EXTRACT(YEAR From DateApproved2) = 2021) as Total_Originating_Lender_Count
+from `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+Where EXTRACT(YEAR From DateApproved2) = 2020 
+
+
+
+--7---
+--In which month was the highest amount given out by the SBA to borrowers
+
+select EXTRACT(YEAR From DateApproved2) as Year_Approved, 
+EXTRACT(MONTH From DateApproved2) as  Month_Approved, 
+ProcessingMethod, 
+sum(CurrentApprovalAmount) as Net_Dollars
+from `root-bricolage-402804.101.public_up_to_150k_1-12_230930`
+group by Year_Approved,  Month_Approved, ProcessingMethod
+order by 4 DESC
+
+
+
+
+
