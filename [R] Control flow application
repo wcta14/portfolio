@@ -1,0 +1,54 @@
+my_score <- 0
+your_score <- 0
+tied <- 0
+
+chatbot <- function() {
+  while(TRUE) {
+    user_choice = readline("type your choice: ")
+    choice <- c("rock","paper","scissors")
+    ai_choice <-  if (user_choice == "rock" | user_choice == "paper" | user_choice =="scissors"){
+      print(sample(choice,1))
+    } else if (user_choice == "quit") {
+      print("Thank For Your Time")
+    } else {
+      print("No")
+    }
+    if (user_choice == "rock" & ai_choice == "rock") {
+      print("we are tie") 
+      tied <-tied +1}
+      else if (user_choice == "rock" & ai_choice == "paper") {
+      print("you lose") 
+        my_score <- my_score +1}
+      else if (user_choice == "rock" & ai_choice == "scissors") {
+      print("you win") 
+        your_score <- your_score+1}
+      else if (user_choice == "paper" & ai_choice == "rock") {
+      print("you win") 
+        your_score <- your_score+1}
+      else if (user_choice == "paper" & ai_choice == "paper"){
+      print("we are tie") 
+        tied <- tied+1}      
+      else if (user_choice == "paper" & ai_choice == "scissors"){
+      print("you lose") 
+        my_score <- my_score +1}   
+      else if (user_choice == "scissors" & ai_choice == "rock") {
+      print("you lose") 
+        my_score <- my_score +1}
+      else if (user_choice == "scissors" & ai_choice == "paper"){
+      print("you win") 
+        your_score <- your_score+1}      
+      else if (user_choice == "scissors" & ai_choice == "scissors"){
+      print("we are tie") 
+        tied <- tied +1}   
+      else if (user_choice == "quit")
+      {
+        print(paste("your score is",your_score))
+        print(paste("my score is",my_score))
+        print(paste("we are tied : ",tied, "times"))
+        break
+}
+    else {
+      print("Try again.")
+    } 
+  }
+}
