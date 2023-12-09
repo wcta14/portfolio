@@ -1,0 +1,58 @@
+# import data
+import pandas as pd
+df = pd.DataFrame(pd.read_csv("sample-store.csv"))
+
+# preview top 100 rows
+df.head(100)
+
+# see data frame information using .info()
+df.info()
+
+#convert order date and ship date to datetime in the original dataframe
+df['Order Date'] = pd.to_datetime(df['Order Date'], format='%m/%d/%Y')
+df['Ship Date'] = pd.to_datetime(df['Ship Date'], format='%m/%d/%Y')
+
+#count nan in postal code column
+df['Postal Code'].isna().sum()
+
+#filter rows with missing values
+df[df['Postal Code'].isna()]
+
+
+# filter and export `California` data
+califonia_data = df.query("State == 'California'")
+califonia_data.to_csv('califonia_data.csv')
+
+# filter and export `California` and `Texas` in 2017 data
+califonia_texas_data_on_2017 = df.query("State == 'California' or State == 'Texas'").query("`Order Date`.dt.year == 2017")
+califonia_texas_data_on_2017.to_csv('califonia&texas_data_on_2017.csv')
+
+# how much total sales, average sales, and standard deviation of sales your company make in 2017
+df.query("`Order Date`.dt.year == 2017")['Sales'].agg(["sum", "mean", "std"])
+
+# which Segment has the highest profit in 2018
+df.query("`Order Date`.dt.year == 2018").groupby('Segment')['Profit'].sum()
+
+# which top 5 States have the least total sales between 15 April 2019 - 31 December 2019
+df_group = pd.DataFrame(df.query("`Order Date` >= '2019-03-15' and `Order Date` <= '2019-12-31'").groupby('State')['Sales'].sum())
+df_group.sort_values("Sales",ascending=False).head()
+
+# what is the proportion of total sales (%) in West + Central in 2019 e.g. 25% 
+(df.query("Region == 'West' or Region == 'Central'").query("`Order Date`.dt.year == 2019")['Sales'].sum()\
+/df.query("`Order Date`.dt.year == 2019")['Sales'].sum())\
+*100
+
+# find top 10 popular products in terms of number of orders vs. total sales during 2019-2020
+Totoal_sales_by_product = pd.DataFrame(df.query("`Order Date`.dt.year == 2019 | `Order Date`.dt.year == 2020")\
+    .groupby('Product Name')['Sales'].sum())
+
+Totoal_orders_by_product = pd.DataFrame(df.query("`Order Date`.dt.year == 2019 | `Order Date`.dt.year == 2020")\
+    .groupby('Product Name')['Order ID'].count())
+
+print(Totoal_sales_by_product.sort_values('Sales',ascending=False).head(10))
+print(Totoal_orders_by_product.sort_values('Order ID',ascending=False).head(10))
+
+#plot graph with ggplt
+df.groupby('Category')['Sales'].sum().plot(kind='bar', color=['salmon','gold','green']);
+
+
