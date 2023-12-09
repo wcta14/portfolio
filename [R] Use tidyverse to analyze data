@@ -1,0 +1,44 @@
+##install.packages("tidyverse")
+## dplyr tidyr ggplot2
+install.packages("tidyverse")
+library(tidyverse)
+
+library(nycflights13)
+head(flights)
+
+## review data frame structure
+glimpse(flights)
+
+##filter data
+flights %>%
+  group_by(month) %>%
+  summarise(n = n())
+
+flights %>%
+  count(month)
+
+flights %>%
+  filter(month == 2) %>%
+  count(carrier)%>%
+  arrange(-n)
+
+
+## Analyze data
+
+flights %>%
+  group_by(carrier) %>%
+  summarise(n = sum(dep_delay > 0)) %>%
+  arrange(-n)
+
+flights %>%
+  group_by(carrier) %>%
+  filter(dep_delay > 0) %>%
+  summarise(number_of_delays = n())
+
+
+flights %>%
+  group_by(carrier) %>%
+  filter(dep_delay > 0) %>%
+  summarise(total_delay_minutes = sum(dep_delay),
+            number_of_delays = n()) %>%
+  arrange(-number_of_delays)
